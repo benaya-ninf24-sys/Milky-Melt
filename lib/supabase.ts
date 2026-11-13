@@ -9,7 +9,7 @@ export const supabase: SupabaseClient | null = validUrl && anonKey ? createClien
 
 // Client server: service role. JANGAN diimpor dari komponen "use client".
 export function supabaseAdmin() {
-  if (!validUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Supabase server environment is not configured.")
+  if (!validUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("Environment Supabase server belum dikonfigurasi. Tambahkan NEXT_PUBLIC_SUPABASE_URL dan SUPABASE_SERVICE_ROLE_KEY di Vercel.")
   return createClient(url as string, process.env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false }
   })
