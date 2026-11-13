@@ -70,6 +70,15 @@ export default function Home() {
 
   useEffect(() => () => { if (paymentPreview) URL.revokeObjectURL(paymentPreview) }, [paymentPreview])
 
+  useEffect(() => {
+    if (!showCheckout && !receipt) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [showCheckout, receipt])
+
   const totalItems = Object.values(cart).reduce((sum, qty) => sum + qty, 0)
   const subtotal = products.reduce((sum, p) => sum + (cart[p.id] ?? 0) * p.price, 0)
   const addOn = addOns.find((a) => a.id === selectedAddOn)
