@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { CalendarDays, Check, ChevronRight, Clock3, Minus, Plus, ShoppingBag, Sparkles, Truck, Upload, X } from "lucide-react"
+import { ArrowLeft, CalendarDays, Check, ChevronRight, Clock3, Download, Minus, Plus, ShoppingBag, Sparkles, Truck, Upload, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { addOns, fallbackProducts, formatReadyDate, fromISODate, getReadyDate, rupiah, type PickupMethod, type Product } from "@/lib/shop"
 
@@ -270,7 +270,10 @@ export default function Home() {
         <div className="flex max-h-[94vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[2rem] bg-cream shadow-soft sm:rounded-[2rem]">
           <div className="shrink-0 px-5 pb-3 pt-5">
             <div className="flex items-center justify-between">
-              <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-deep">Almost yours</p><h2 id="checkout-title" className="mt-1 font-sans text-2xl font-black text-ink">Checkout manis</h2></div>
+              <div className="flex items-center gap-3">
+                {step > 1 && <button type="button" aria-label="Kembali ke langkah sebelumnya" onClick={goBack} disabled={submitting} className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-ink/70 shadow-sm hover:text-ink disabled:opacity-40"><ArrowLeft size={18} /></button>}
+                <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-deep">Almost yours</p><h2 id="checkout-title" className="mt-1 font-sans text-2xl font-black text-ink">Checkout manis</h2></div>
+              </div>
               <button type="button" aria-label="Tutup checkout" onClick={() => setShowCheckout(false)} className="grid h-10 w-10 place-items-center rounded-full bg-white text-ink/60 shadow-sm hover:text-ink"><X size={18} /></button>
             </div>
             <ol className="mt-4 grid grid-cols-3 gap-2" aria-label="Langkah checkout">
@@ -323,7 +326,8 @@ export default function Home() {
             {step === 3 && <div className="space-y-4">
               <div className="rounded-2xl bg-blush p-4 text-center"><p className="text-[11px] font-bold uppercase tracking-wider text-rose-deep">Nominal yang harus dibayar</p><p className="mt-1 text-3xl font-black text-ink">{rupiah(total)}</p><p className="mt-1 text-xs text-ink/60">{totalItems} item • Ready {formatReadyDate(readyDate)}</p></div>
               <section className="rounded-2xl bg-white p-4"><div className="flex items-start gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blush text-rose-deep"><ShoppingBag size={15} aria-hidden="true" /></div><div><h3 className="text-sm font-black text-ink">Pembayaran QRIS wajib di awal</h3><p className="mt-1 text-xs leading-5 text-ink/60">Pembayaran wajib dilakukan di awal melalui QRIS sebelum pesanan diproses.</p></div></div>
-                <div className="relative mx-auto my-4 flex h-48 w-48 items-center justify-center overflow-hidden rounded-xl border border-rose/10 bg-cream p-2 text-center text-[10px] font-bold text-ink/45"><span className="leading-4">QRIS TOKO<br /><span className="font-normal">Ganti gambar di<br />/qris-toko.png</span></span><img src="/qris-toko.png" alt="QRIS pembayaran Milky Melt" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] bg-white object-contain" onError={(e) => { e.currentTarget.style.display = "none" }} /></div>
+                <div className="relative mx-auto my-4 flex h-72 w-72 max-w-full items-center justify-center overflow-hidden rounded-2xl border border-rose/10 bg-cream p-2 text-center text-[10px] font-bold text-ink/45 sm:h-80 sm:w-80"><span className="leading-4">QRIS TOKO<br /><span className="font-normal">Ganti gambar di<br />/qris-toko.png</span></span><img src="/qris-toko.png" alt="QRIS pembayaran Milky Melt" className="absolute inset-2 h-[calc(100%-1rem)] w-[calc(100%-1rem)] bg-white object-contain" onError={(e) => { e.currentTarget.style.display = "none" }} /></div>
+                <a href="/qris-toko.png" download="qris-milky-melt.png" className="mx-auto flex min-h-11 w-fit items-center gap-2 rounded-full border border-rose/20 px-4 text-xs font-bold text-rose-deep hover:bg-blush"><Download size={15} aria-hidden="true" /> Download QRIS</a>
                 <ol className="space-y-1.5 text-xs leading-5 text-ink/70"><li><strong className="text-rose-deep">1.</strong> Scan QRIS melalui bank atau e-wallet.</li><li><strong className="text-rose-deep">2.</strong> Bayar sesuai nominal <strong className="text-ink">{rupiah(total)}</strong>.</li><li><strong className="text-rose-deep">3.</strong> Upload screenshot bukti pembayaran.</li></ol>
               </section>
               <section className="rounded-2xl bg-white p-4"><label className="block text-sm font-bold text-ink">Foto bukti pembayaran<span className="ml-1 text-rose-deep">*</span><span className={`mt-2 flex min-h-14 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed bg-blush px-4 text-sm font-bold text-rose-deep hover:bg-rose/10 ${bad(!paymentProof) ? "border-rose-deep" : "border-rose/30"}`}><Upload size={16} aria-hidden="true" /> {paymentProof ? "Ganti foto bukti" : "Pilih foto bukti"}<input type="file" accept="image/*" onChange={(e) => handleProofChange(e.target.files?.[0])} className="sr-only" /></span></label>{bad(!paymentProof) && <p role="alert" className="mt-2 text-xs font-bold text-rose-deep">Upload bukti pembayaran dulu ya.</p>}{paymentPreview && <img src={paymentPreview} alt="Preview bukti pembayaran QRIS" className="mt-3 max-h-48 w-full rounded-xl object-contain" />}</section>
