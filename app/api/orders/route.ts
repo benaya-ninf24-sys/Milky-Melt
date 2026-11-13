@@ -34,7 +34,7 @@ function normalizePhone(raw: string) {
 
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return fail("Pemesanan online belum dikonfigurasi oleh admin.", 503)
+    return fail("Server pemesanan belum terhubung ke database. Tambahkan environment Supabase di Vercel.", 503)
   }
   let form: FormData
   try {

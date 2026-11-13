@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Bell, Check, ExternalLink, Heart, Lock, LogOut, MessageCircle, RotateCcw, Settings, X } from "lucide-react"
+import { Bell, Check, CircleDollarSign, Clock3, ExternalLink, Heart, Lock, LogOut, MessageCircle, PackageCheck, RotateCcw, Settings, ShoppingBag, Truck, X } from "lucide-react"
 import { formatReadyDate, fromISODate, rupiah } from "@/lib/shop"
 import type { Order, OrderStatus } from "@/lib/admin-types"
 
@@ -54,12 +54,13 @@ export default function AdminPage() {
   const [phase, setPhase] = useState<Phase>("checking")
   const [orders, setOrders] = useState<Order[]>([])
   const [menus, setMenus] = useState<MenuRow[]>([])
-  const [tab, setTab] = useState<"orders" | "stock" | "settings">("orders")
+  const [tab, setTab] = useState<"orders" | "pay" | "prod" | "ship" | "history" | "stock" | "settings">("orders")
   const [dateFilter, setDateFilter] = useState<string | null>(null) // null = belum dipilih, "all" = semua
   const [statusFilter, setStatusFilter] = useState<"all" | OrderStatus>("all")
   const [busyId, setBusyId] = useState<string | null>(null)
   const [actionError, setActionError] = useState("")
   const [loadError, setLoadError] = useState(false)
+  const [loadMessage, setLoadMessage] = useState("")
   const [newCount, setNewCount] = useState(0)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [proofUrl, setProofUrl] = useState<string | null>(null)
@@ -77,7 +78,10 @@ export default function AdminPage() {
         setPhase("locked")
         return
       }
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(typeof errorData.error === "string" ? errorData.error : "Gagal membaca data admin.")
+      }
       const data: { orders: Order[]; menus: MenuRow[] } = await res.json()
       const incoming = data.orders
       if (knownIds.current === null) {
@@ -92,10 +96,12 @@ export default function AdminPage() {
       setOrders(incoming)
       setMenus(data.menus)
       setLoadError(false)
+      setLoadMessage("")
       setLastUpdated(new Date())
       setPhase("in")
-    } catch {
+    } catch (error) {
       setLoadError(true)
+      setLoadMessage(error instanceof Error ? error.message : "Gagal membaca data admin.")
       setPhase((p) => (p === "checking" ? "locked" : p))
     }
   }, [])
@@ -128,23 +134,29 @@ export default function AdminPage() {
   }, [dates, dateFilter])
 
   const byDate = useMemo(() => orders.filter((o) => dateFilter === "all" || dateFilter === null || o.ready_date === dateFilter), [orders, dateFilter])
-  const visible = useMemo(() => byDate.filter((o) => statusFilter === "all" || o.status === statusFilter), [byDate, statusFilter])
+  const visible = useMemo(() => {
+    if (tab === "pay") return byDate.filter((o) => o.status === "menunggu_konfirmasi")
+    if (tab === "prod") return byDate.filter((o) => o.status === "diproses")
+    if (tab === "ship") return byDate.filter((o) => o.status === "siap")
+    if (tab === "history") return byDate.filter((o) => o.status === "selesai")
+    return byDate.filter((o) => statusFilter === "all" || o.status === statusFilter)
+  }, [byDate, statusFilter, tab])
   const statusCount = (key: "all" | OrderStatus) => (key === "all" ? byDate.length : byDate.filter((o) => o.status === key).length)
-
-  // Rekap produksi: hanya pesanan yang pembayarannya sudah dikonfirmasi
-  const recap = useMemo(() => {
+  const dashboard = useMemo(() => {
     const confirmed = byDate.filter((o) => o.payment_confirmed)
-    const qty = new Map<string, number>()
-    const bags = new Map<string, number>()
-    for (const o of confirmed) {
-      for (const line of o.items) qty.set(line.id, (qty.get(line.id) ?? 0) + line.qty)
-      if (o.add_on) bags.set(o.add_on.name, (bags.get(o.add_on.name) ?? 0) + 1)
+    const pending = byDate.filter((o) => o.status === "menunggu_konfirmasi")
+    const sold = confirmed.reduce((sum, order) => sum + order.items.reduce((total, item) => total + item.qty, 0), 0)
+    const pendingPcs = pending.reduce((sum, order) => sum + order.items.reduce((total, item) => total + item.qty, 0), 0)
+    return {
+      income: confirmed.reduce((sum, order) => sum + order.total, 0),
+      pending: pending.length,
+      pendingPcs,
+      sold,
+      processing: byDate.filter((o) => o.status === "diproses").length,
+      ready: byDate.filter((o) => o.status === "siap").length,
+      completed: byDate.filter((o) => o.status === "selesai").length
     }
-    const rows = menus.filter((m) => qty.has(m.id)).map((m) => ({ name: m.name, qty: qty.get(m.id) ?? 0 }))
-    const pcs = rows.reduce((s, r) => s + r.qty, 0)
-    const pending = byDate.filter((o) => !o.payment_confirmed).reduce((s, o) => s + o.items.reduce((x, l) => x + l.qty, 0), 0)
-    return { rows, pcs, bags: Array.from(bags), pending, orders: confirmed.length }
-  }, [byDate, menus])
+  }, [byDate])
 
   const login = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -239,7 +251,7 @@ export default function AdminPage() {
             className="mt-5 min-h-12 w-full rounded-xl border border-rose/15 bg-cream text-center text-xl font-black tracking-[0.5em] outline-none focus:border-rose focus:ring-4 focus:ring-rose/10"
           />
           {pinError && <p role="alert" className="mt-3 text-xs font-bold text-rose-deep">{pinError}</p>}
-          {loadError && !pinError && <p role="alert" className="mt-3 text-xs font-bold text-rose-deep">Tidak bisa menghubungi server.</p>}
+          {loadError && !pinError && <p role="alert" className="mt-3 text-xs font-bold text-rose-deep">{loadMessage || "Tidak bisa menghubungi server."}</p>}
           <button type="submit" disabled={!pin || pinBusy} className="mt-4 min-h-12 w-full rounded-full bg-ink text-sm font-bold text-white transition hover:bg-rose-deep disabled:opacity-40">{pinBusy ? "Memeriksa..." : "Masuk"}</button>
         </form>
       </main>
@@ -263,9 +275,17 @@ export default function AdminPage() {
           <button type="button" onClick={logout} className="flex min-h-10 items-center gap-2 rounded-full bg-white px-4 text-xs font-bold text-ink/70 shadow-sm hover:text-ink"><LogOut size={14} aria-hidden="true" /> Keluar</button>
         </header>
 
-        <div className="mb-5 grid grid-cols-3 gap-2 rounded-2xl bg-white p-1.5 text-sm font-black">
-          {(["orders", "stock", "settings"] as const).map((key) => (
-            <button key={key} type="button" onClick={() => setTab(key)} className={`min-h-11 rounded-xl transition ${tab === key ? "bg-rose text-white" : "text-ink/55 hover:bg-blush"}`}>{key === "orders" ? "Pesanan" : key === "stock" ? "Stok menu" : "Settings"}</button>
+        <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+          {([
+            ["orders", "Semua"],
+            ["pay", "Pembayaran"],
+            ["prod", "Produksi"],
+            ["ship", "Siap & kirim"],
+            ["history", "Riwayat"],
+            ["stock", "Stok"],
+            ["settings", "Pengaturan"]
+          ] as const).map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setTab(key)} className={`min-h-11 shrink-0 rounded-xl px-4 text-xs font-black transition ${tab === key ? "bg-rose text-white" : "bg-white text-ink/55 hover:bg-blush"}`}>{label}</button>
           ))}
         </div>
 
@@ -316,7 +336,7 @@ export default function AdminPage() {
           </section>
         )}
 
-        {tab === "orders" && (
+        {tab !== "stock" && tab !== "settings" && (
           <>
             {newCount > 0 && (
               <button type="button" onClick={() => setNewCount(0)} className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-deep px-4 py-3 text-sm font-black text-white">
@@ -332,37 +352,64 @@ export default function AdminPage() {
               ))}
             </div>
 
-            <section className="mb-5 rounded-2xl border border-rose/15 bg-white p-4" aria-labelledby="recap-title">
-              <div className="flex items-baseline justify-between gap-3">
-                <h2 id="recap-title" className="text-sm font-black text-ink">Rekap produksi</h2>
-                <span className="text-xs font-bold text-rose-deep">{recap.pcs} pcs • {recap.orders} pesanan</span>
+            {tab === "orders" ? (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button type="button" onClick={() => setTab("orders")} className="rounded-2xl bg-ink p-4 text-left text-white shadow-card">
+                    <CircleDollarSign size={20} aria-hidden="true" />
+                    <p className="mt-4 text-xs font-bold text-white/65">Pemasukan terkonfirmasi</p>
+                    <p className="mt-1 text-xl font-black">{rupiah(dashboard.income)}</p>
+                  </button>
+                  <button type="button" onClick={() => setTab("pay")} className="rounded-2xl bg-butter p-4 text-left text-ink shadow-card">
+                    <Clock3 size={20} aria-hidden="true" />
+                    <p className="mt-4 text-xs font-bold text-ink/60">Perlu dikonfirmasi</p>
+                    <p className="mt-1 text-xl font-black">{dashboard.pending} pesanan</p>
+                    <p className="mt-1 text-xs font-bold text-ink/55">{dashboard.pendingPcs} pcs belum masuk penjualan</p>
+                  </button>
+                  <button type="button" onClick={() => setTab("history")} className="rounded-2xl bg-blush p-4 text-left text-ink shadow-card">
+                    <ShoppingBag size={20} aria-hidden="true" />
+                    <p className="mt-4 text-xs font-bold text-ink/60">Terjual</p>
+                    <p className="mt-1 text-xl font-black">{dashboard.sold} pcs</p>
+                    <p className="mt-1 text-xs font-bold text-ink/55">{dashboard.completed} pesanan selesai</p>
+                  </button>
+                  <button type="button" onClick={() => setTab("ship")} className="rounded-2xl bg-mint p-4 text-left text-[#317156] shadow-card">
+                    <Truck size={20} aria-hidden="true" />
+                    <p className="mt-4 text-xs font-bold text-[#317156]/70">Siap dikirim / diambil</p>
+                    <p className="mt-1 text-xl font-black">{dashboard.ready} pesanan</p>
+                    <p className="mt-1 text-xs font-bold text-[#317156]/70">{dashboard.processing} pesanan masih diproses</p>
+                  </button>
+                </div>
+
+                <section className="mt-4 rounded-2xl border border-rose/15 bg-white p-4">
+                  <h2 className="text-sm font-black text-ink">Status pesanan</h2>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-4">
+                    {([
+                      ["pay", "Menunggu konfirmasi", dashboard.pending, Clock3],
+                      ["prod", "Sedang diproses", dashboard.processing, ShoppingBag],
+                      ["ship", "Siap dikirim", dashboard.ready, PackageCheck],
+                      ["history", "Selesai", dashboard.completed, Check]
+                    ] as const).map(([key, label, count, Icon]) => (
+                      <button key={key} type="button" onClick={() => setTab(key)} className="flex items-center gap-3 rounded-xl bg-cream px-3 py-3 text-left hover:bg-blush">
+                        <Icon size={16} className="shrink-0 text-rose-deep" aria-hidden="true" />
+                        <span className="min-w-0"><span className="block truncate text-xs font-bold text-ink/60">{label}</span><strong className="text-base text-ink">{count}</strong></span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              </>
+            ) : (
+              <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                {STATUS_FILTERS.filter((f) => f.key !== "all").map((f) => (
+                  <button key={f.key} type="button" onClick={() => setStatusFilter(f.key)} className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${statusFilter === f.key ? "border-rose bg-blush text-rose-deep" : "border-rose/10 bg-white text-ink/55"}`}>
+                    {f.label} <span className="opacity-60">{statusCount(f.key)}</span>
+                  </button>
+                ))}
               </div>
-              {recap.rows.length === 0 ? (
-                <p className="mt-3 text-sm text-ink/50">Belum ada pesanan terkonfirmasi untuk jadwal ini.</p>
-              ) : (
-                <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {recap.rows.map((row) => (
-                    <li key={row.name} className="flex items-center justify-between rounded-xl bg-cream px-3 py-2.5 text-sm font-bold text-ink">
-                      <span>{row.name}</span><span className="rounded-full bg-rose px-2.5 py-0.5 text-xs text-white">{row.qty} pcs</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {recap.bags.length > 0 && <p className="mt-3 text-xs font-semibold text-ink/60">Thermal bag: {recap.bags.map(([name, n]) => `${name} × ${n}`).join(", ")}</p>}
-              {recap.pending > 0 && <p className="mt-2 text-xs text-ink/45">Belum termasuk {recap.pending} pcs yang pembayarannya belum dikonfirmasi.</p>}
-            </section>
+            )}
 
-            <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-              {STATUS_FILTERS.map((f) => (
-                <button key={f.key} type="button" onClick={() => setStatusFilter(f.key)} className={`shrink-0 rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${statusFilter === f.key ? "border-rose bg-blush text-rose-deep" : "border-rose/10 bg-white text-ink/55"}`}>
-                  {f.label} <span className="opacity-60">{statusCount(f.key)}</span>
-                </button>
-              ))}
-            </div>
+            {tab !== "orders" && visible.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-ink/50">Belum ada pesanan.</p>}
 
-            {visible.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-ink/50">Belum ada pesanan.</p>}
-
-            <div className="grid gap-4 md:grid-cols-2">
+            {tab !== "orders" && <div className="grid gap-4 md:grid-cols-2">
               {visible.map((order) => {
                 const busy = busyId === order.id
                 const pcs = order.items.reduce((s, l) => s + l.qty, 0)
@@ -412,8 +459,32 @@ export default function AdminPage() {
                   </article>
                 )
               })}
-            </div>
+            </div>}
           </>
+        )}
+
+        {tab !== "stock" && tab !== "settings" && (
+          <section className="mb-5 rounded-2xl border border-rose/15 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-ink">
+                  {tab === "pay" ? "Konfirmasi Pembayaran" : tab === "prod" ? "Produksi" : tab === "ship" ? "Siap & Kirim" : tab === "history" ? "Riwayat" : "Semua Pesanan"}
+                </h2>
+                <p className="mt-1 text-xs leading-5 text-ink/55">
+                  {tab === "pay"
+                    ? "Cek bukti bayar dan cocokkan nominalnya sebelum dikonfirmasi."
+                    : tab === "prod"
+                      ? "Pesanan dengan pembayaran terkonfirmasi yang perlu dibuat."
+                      : tab === "ship"
+                        ? "Pesanan yang sudah siap untuk diantar atau diambil."
+                        : tab === "history"
+                          ? "Pesanan yang sudah selesai."
+                          : "Pantau seluruh pesanan berdasarkan jadwal ready."}
+                </p>
+              </div>
+              <span className="shrink-0 rounded-full bg-blush px-3 py-1 text-xs font-black text-rose-deep">{visible.length}</span>
+            </div>
+          </section>
         )}
       </div>
 
