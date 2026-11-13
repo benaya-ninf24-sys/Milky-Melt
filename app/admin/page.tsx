@@ -30,7 +30,7 @@ const STATUS_FILTERS: { key: "all" | OrderStatus; label: string }[] = [
 ]
 
 const todayWIB = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Jakarta" }).format(new Date())
-const shortDate = (iso: string) => formatReadyDate(fromISODate(iso)).replace(/ \d{4}$/, "")
+const shortDate = (iso: string) => formatReadyDate(fromISODate(iso))
 const timeWIB = (iso: string) =>
   new Intl.DateTimeFormat("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(iso))
 
@@ -221,7 +221,7 @@ export default function AdminPage() {
   const toggleStock = async (menu: MenuRow) => {
     const next = !menu.sold_out
     setMenus((current) => current.map((m) => (m.id === menu.id ? { ...m, sold_out: next } : m)))
-    const res = await fetch(`/api/admin/menus/${menu.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sold_out: next }) })
+    const res = await fetch("/api/admin/orders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ menuId: menu.id, sold_out: next }) })
     if (res.status === 401) return setPhase("locked")
     if (!res.ok) setActionError("Gagal mengubah stok.")
     await load()
@@ -351,6 +351,7 @@ export default function AdminPage() {
                 </button>
               ))}
             </div>
+            <p className="mb-4 text-xs font-bold text-ink/50">Jadwal ready: Senin, Selasa, Rabu, Kamis, Jumat</p>
 
             {tab === "orders" ? (
               <>

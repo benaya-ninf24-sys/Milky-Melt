@@ -5,6 +5,24 @@ import { supabaseAdmin } from "@/lib/supabase"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+export async function PATCH(request: NextRequest) {
+  if (!isAuthed(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  const body = await request.json().catch(() => ({}))
+  const menuId = typeof body.menuId === "string" ? body.menuId : ""
+  if (!menuId || typeof body.sold_out !== "boolean") {
+    return NextResponse.json({ error: "Data stok tidak valid." }, { status: 400 })
+  }
+  try {
+    const db = supabaseAdmin()
+    const { data, error } = await db.from("menus").update({ sold_out: body.sold_out }).eq("id", menuId).select("id,name,sold_out").maybeSingle()
+    if (error) return NextResponse.json({ error: "Gagal mengubah stok menu." }, { status: 500 })
+    if (!data) return NextResponse.json({ error: "Menu tidak ditemukan." }, { status: 404 })
+    return NextResponse.json({ menu: data })
+  } catch {
+    return NextResponse.json({ error: "Konfigurasi server belum lengkap." }, { status: 500 })
+  }
+}
+
 export async function GET(request: NextRequest) {
   if (!isAuthed(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   try {

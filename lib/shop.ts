@@ -28,13 +28,12 @@ export const fallbackProducts: Product[] = [
 const weekdayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
 const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
 
-const CUTOFF_HOUR = 15 // WIB
-
 /**
  * Aturan jadwal ready (waktu WIB):
- * 1. Pesanan masuk lewat 15.00, atau di akhir pekan, dianggap dipesan di hari kerja berikutnya.
- * 2. Ready = hari kerja setelah hari pesanan dihitung (H-1).
- * Contoh: Kamis 14.00 -> Jumat | Kamis 16.00 -> Senin | Jumat 16.00 -> Selasa | Minggu -> Selasa
+ * 1. Pesanan akhir pekan masuk ke ready Senin.
+ * 2. Pesanan hari kerja sebelum atau tepat 15.00 masuk ke hari kerja berikutnya.
+ * 3. Pesanan setelah 15.00 masuk ke hari kerja berikutnya setelah itu.
+ * Contoh: Sabtu/Minggu -> Senin | Senin 14.00 -> Selasa | Jumat 16.00 -> Senin
  */
 export function getReadyDate(now = new Date()): Date {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -42,23 +41,20 @@ export function getReadyDate(now = new Date()): Date {
     year: "numeric",
     month: "numeric",
     day: "numeric",
-    hour: "numeric",
-    minute: "numeric",
     hour12: false
   }).formatToParts(now)
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0)
-  const hour = get("hour") % 24 // beberapa runtime mengembalikan 24 untuk tengah malam
-  const minute = get("minute")
-  const afterCutoff = hour > CUTOFF_HOUR || (hour === CUTOFF_HOUR && minute > 0)
-
   const placed = new Date(Date.UTC(get("year"), get("month") - 1, get("day")))
-  if (afterCutoff) placed.setUTCDate(placed.getUTCDate() + 1)
-  skipWeekend(placed)
+  const day = placed.getUTCDay()
 
-  const ready = new Date(placed)
-  ready.setUTCDate(ready.getUTCDate() + 1)
-  skipWeekend(ready)
-  return ready
+  if (day === 0 || day === 6) {
+    skipWeekend(placed)
+    return placed
+  }
+
+  placed.setUTCDate(placed.getUTCDate() + 1)
+  skipWeekend(placed)
+  return placed
 }
 
 function skipWeekend(date: Date) {

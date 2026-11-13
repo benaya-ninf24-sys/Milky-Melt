@@ -256,16 +256,10 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="mt-12">
-          <div className="mb-5"><p className="text-xs font-bold uppercase tracking-[0.18em] text-rose-deep">Optional extra</p><h2 className="mt-1 font-sans text-3xl font-black text-ink">Biar tetap dingin ♡</h2></div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {addOns.map((a) => <button type="button" key={a.id} onClick={() => setSelectedAddOn(selectedAddOn === a.id ? null : a.id)} aria-pressed={selectedAddOn === a.id} className={`flex min-h-[76px] items-center justify-between rounded-2xl border p-4 text-left transition ${selectedAddOn === a.id ? "border-rose bg-blush shadow-card" : "border-rose/10 bg-white hover:border-rose/30"}`}>
-              <span><span className="block text-sm font-extrabold text-ink">{a.name}</span><span className="mt-1 block text-xs text-ink/55">{a.note}</span></span><span className="flex items-center gap-3 text-sm font-black text-rose-deep">{rupiah(a.price)}<span className={`grid h-7 w-7 place-items-center rounded-full border ${selectedAddOn === a.id ? "border-rose bg-rose text-white" : "border-rose/20 text-transparent"}`}><Check size={14} /></span></span>
-            </button>)}
-          </div>
-        </section>
-
-        <footer className="mt-14 border-t border-rose/10 pt-6 text-center text-xs leading-5 text-ink/45">Made with love for your little sweet moments.<br />Milky Melt — weekday pre-order only.</footer>
+        <footer className="mt-14 border-t border-rose/10 pt-6 text-center text-xs leading-5 text-ink/45">
+          Made with love for your little sweet moments.<br />Milky Melt — weekday pre-order only.
+          <br /><span>Powered by </span><a href="https://instagram.com/benaya.nathanael" target="_blank" rel="noopener noreferrer" className="font-bold text-rose-deep hover:underline">@benaya.nathanael</a>
+        </footer>
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-30 px-4 pb-4 sm:px-6">
