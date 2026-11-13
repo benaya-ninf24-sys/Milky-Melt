@@ -71,7 +71,10 @@ export async function POST(request: Request) {
   // Harga dan stok SELALU diambil dari database, bukan dari klien.
   const ids = items.map((item) => item.id)
   const { data: menus, error: menuError } = await db.from("menus").select("id,name,price,sold_out").in("id", ids)
-  if (menuError) return fail("Gagal membaca menu.", 500)
+  if (menuError) {
+    console.error("[orders] menu lookup failed:", menuError.message)
+    return fail("Menu tidak bisa dibaca dari database. Periksa environment Supabase di Vercel.", 500)
+  }
 
   const lines: { id: string; name: string; qty: number; price: number }[] = []
   for (const item of items) {
